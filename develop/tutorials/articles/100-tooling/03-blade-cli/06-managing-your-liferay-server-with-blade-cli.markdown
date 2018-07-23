@@ -7,7 +7,7 @@ Liferay server.
 Make sure you're in a Liferay Workspace and have a bundle installed and
 configured in the workspace before testing the Blade CLI commands on your own.
 To learn more about installing a Liferay server in a Liferay Workspace, see the
-[Creating a Liferay Workspace with Liferay IDE](/develop/tutorials/-/knowledge_base/7-0/creating-a-liferay-workspace-with-liferay-ide)
+[Creating a Liferay Workspace with Liferay @ide@](/develop/tutorials/-/knowledge_base/7-1/creating-a-liferay-workspace-with-liferay-ide)
 section. The following Blade CLI commands are covered in this sub-section:
 
 - `server`
@@ -35,8 +35,12 @@ server's OSGi container.
 
 ![Figure 1: Blade CLI accesses the Gogo shell script to run the `lb` command.](../../../images/blade-sh.png)
 
-You can run any Gogo command using `blade sh`. See the
-[Using the Felix Gogo Shell](/develop/reference/-/knowledge_base/7-0/using-the-felix-gogo-shell)
+You can run any Gogo command using `blade sh`. This command requires
+[Developer Mode](/develop/tutorials/-/knowledge_base/7-1/using-developer-mode-with-themes#setting-developer-mode-for-your-server-using-portal-developer-properties)
+to be enabled. Developer Mode is enabled in
+[Liferay Workspace](/develop/tutorials/-/knowledge_base/7-1/liferay-workspace)
+by default. See the
+[Using the Felix Gogo Shell](/develop/reference/-/knowledge_base/7-1/using-the-felix-gogo-shell)
 section for more information on this tool.
 
 Awesome! You learned how to conveniently interact with @product@ using Blade
