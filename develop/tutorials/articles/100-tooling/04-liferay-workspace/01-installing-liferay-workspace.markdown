@@ -1,21 +1,22 @@
 # Installing Liferay Workspace [](id=installing-liferay-workspace)
 
-You can install Liferay Workspace using the Liferay Workspace installer. This
+You can install Liferay Workspace using the Liferay Project SDK installer. This
 installs JPM and
-[Blade CLI](/develop/tutorials/-/knowledge_base/7-0/blade-cli) into your user
+[Blade CLI](/develop/tutorials/-/knowledge_base/7-1/blade-cli) into your user
 home folder and optionally initializes a Liferay Workspace folder. This is the
 same installer used to install Blade CLI, which is covered in the
-[Installing Blade CLI](/develop/tutorials/-/knowledge_base/7-0/installing-blade-cli)
+[Installing Blade CLI](/develop/tutorials/-/knowledge_base/7-1/installing-blade-cli)
 tutorial.
 
 Follow the steps below to download and install Liferay Workspace:
 
 1.  Download the
-    [Liferay Workspace installer](https://sourceforge.net/projects/lportal/files/Liferay%20Workspace).
-    Make sure to select the version folder (for example, 1.5.0.1) and then
-    select the Workspace version corresponding to your operating system (e.g.,
-    Windows, MacOS, or Linux). Do **not** select the large green download
-    button; this downloads Liferay Portal instead.
+    [Liferay Project SDK installer](https://sourceforge.net/projects/lportal/files/Liferay%20IDE/3.2.0%20M1/).
+    The Project SDK installer is currently listed under *Liferay IDE*, so select
+    the latest IDE version for the latest Project SDK installer. You can select
+    an installer that includes @ide@, depending on your needs. Do **not**
+    select the large green download button; this downloads Liferay Portal
+    instead.
 
 2.  Run the installer. Click *Next* to step through the installer's
     introduction.
@@ -41,7 +42,7 @@ Follow the steps below to download and install Liferay Workspace:
     to your `~/.liferay/bundles` folder, so if you decide to initialize another
     @product@ instance of the same version, the bundle is not re-downloaded. See
     the
-    [Adding a Liferay Bundle to a Workspace](/develop/tutorials/-/knowledge_base/7-0/configuring-a-liferay-workspace#adding-a-liferay-bundle-to-a-workspace)
+    [Adding a Liferay Bundle to a Workspace](/develop/tutorials/-/knowledge_base/7-1/configuring-a-liferay-workspace#adding-a-liferay-bundle-to-a-workspace)
     for more information on this topic.
 
     $$$
