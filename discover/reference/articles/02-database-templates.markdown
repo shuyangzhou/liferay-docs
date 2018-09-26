@@ -22,4 +22,4 @@ supports with Liferay's built-in data source.
     jdbc.default.driverClassName=org.postgresql.Driver
     jdbc.default.url=jdbc:postgresql://localhost:5432/lportal
     jdbc.default.username=sa
-    jdbc.default.password=
+    jdbc.default.password

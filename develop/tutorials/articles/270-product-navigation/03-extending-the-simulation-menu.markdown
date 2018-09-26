@@ -1,78 +1,69 @@
 # Extending the Simulation Menu [](id=extending-the-simulation-menu)
 
-When testing how Liferay pages and apps will appear for users, it's critical to
-simulate their views on as many useful ways as possible. By default, Liferay
-provides the Simulation Menu on the right-side of the main page. What if,
-however, you'd like to simulate something in Liferay that is not provided by the
-Simulation Menu? You'll need to extend the Simulation Menu, of course! Luckily,
-Liferay offers a simple way to extend and customize the Simulation Menu so you
-can test what you need. In this tutorial, you'll learn how to add additional
-functionality to the menu so you can do more simulating and less wondering.
+When testing how pages and apps appear for users, it's important to simulate
+their views in as many ways as possible. The Simulation Menu on the right-side
+of the main page allows this, and you can extend the menu if you need to
+simulate something that it does not provide.
 
-The first thing you'll need to do is get accustomed to using panel
-categories/apps. This is covered in detail in the
-[Customizing The Product Menu](/develop/tutorials/-/knowledge_base/7-0/customizing-the-product-menu)
-tutorial. Once you know the difference between panel categories and panel apps,
-and know how to create them, continue on in this tutorial.
+First, you must get accustomed to using panel categories/apps. This is
+covered in detail in the
+[Customizing The Product Menu](/develop/tutorials/-/knowledge_base/7-1/customizing-the-product-menu)
+tutorial. Once you know how to create panel categories and panel apps, continue
+with this tutorial.
 
 There are few differences between the Simulation Menu and Product Menu, mostly
 because they extend the same base classes. The Simulation Menu, by default, is
 made up of only one panel category and one panel app. Liferay provides the
-[SimulationPanelCategory](@app-ref@/web-experience/latest/javadocs/com/liferay/product/navigation/simulation/application/list/SimulationPanelCategory.html)
-class, which is a hidden category needed to hold the `DevicePreviewPanelApp`.
-This is the app and functionality you see in the Simulation Menu by default.
+[`SimulationPanelCategory`](@app-ref@/web-experience/latest/javadocs/com/liferay/product/navigation/simulation/application/list/SimulationPanelCategory.html)
+class, a hidden category needed to hold the `DevicePreviewPanelApp`. This is the
+app and functionality you see in the Simulation Menu by default.
 
 ![Figure 1: The Simulation Menu offers a device preview application.](../../images/simulation-menu-preview.png)
 
-To provide your own functionality in the Simulation Menu, you'll need to create
-a panel app in the `SimulationPanelCategory`. If you're looking to add extensive
+To provide your own functionality in the Simulation Menu, you must create
+a panel app in `SimulationPanelCategory`. If you want to add extensive
 functionality, you can even create additional panel categories in the menu to
-divide up your panel apps. This tutorial will cover the simpler case of creating
+divide up your panel apps. This tutorial covers the simpler case of creating
 a panel app for the already present hidden category.
 
-1. Follow the steps documented in the
-   [Adding Custom Panel Apps](/develop/tutorials/-/knowledge_base/7-0/customizing-the-product-menu#adding-custom-panel-apps)
-   section for creating custom panel apps. Once you've created the foundation of
-   your panel app, move on to learn how to tweak it so it customizes the
-   Simulation Menu.
+1.  Follow the steps documented in 
+    [Adding Custom Panel Apps](/develop/tutorials/-/knowledge_base/7-0/customizing-the-product-menu#adding-custom-panel-apps)
+    for creating custom panel apps. Once you've created the foundation 
+    of your panel app, move on to learn how to tweak it so it customizes the
+    Simulation Menu.
 
-   You can easily generate a Simulation Panel App by using Blade CLI's
-   [Simulation Panel Entry template](/develop/reference/-/knowledge_base/7-0/simulation-panel-entry-template).
-   You can also refer to the
-   [Simulation Panel App sample](/develop/reference/-/knowledge_base/7-0/simulation-panel-app)
-   for a working example.
+    You can generate a Simulation Panel App by using Blade CLI's
+    [Simulation Panel Entry template](/develop/reference/-/knowledge_base/7-1/simulation-panel-entry-template).
+    You can also refer to the [Simulation Panel App sample](/develop/reference/-/knowledge_base/7-1/simulation-panel-app)
+    for a working example.
 
-2. Since this tutorial assumes you're providing more functionality to the
-   existing simulation category, set the simulation category in the
-   `panel.category.key` of the `@Component` annotation:
+2.  Since this tutorial assumes you're providing more functionality to the
+    existing simulation category, set the simulation category in the
+    `panel.category.key` of the `@Component` annotation:
 
         "panel.category.key=" + SimulationPanelCategory.SIMULATION
 
-    In order to use this constant, you need to add a dependency on 
-    [com.liferay.product.navigation.simulation](https://repository.liferay.com/nexus/content/repositories/liferay-public-releases/com/liferay/com.liferay.product.navigation.simulation/).
-    Be sure to also specify the order you'd like to display your new panel app,
-    which was explained in the 
-    [Adding Custom Panel Apps](/develop/tutorials/-/knowledge_base/7-0/customizing-the-product-menu#adding-custom-panel-apps)
-    section.
+    In order to use this constant, you must add a dependency on 
+    [`com.liferay.product.navigation.simulation`](https://repository.liferay.com/nexus/content/repositories/liferay-public-releases/com/liferay/com.liferay.product.navigation.simulation/).
 
-3. This tutorial assumes you're using JSPs for creating a complex UI. Therefore,
-   you should extend the [BaseJSPPanelApp](@app-ref@/web-experience/latest/javadocs/com/liferay/application/list/BaseJSPPanelApp.html)
-   abstract class. This class implements the
-   [PanelApp](@app-ref@/web-experience/latest/javadocs/com/liferay/application/list/PanelApp.html)
-   interface and also provides additional methods necessary for specifying JSPs
-   to render your panel app's UI. Remember that you can also implement your own
-   `include()` method to use any frontend technology you want, if you'd like to
-   use a technology other than JSP (e.g., FreeMarker).
+    Be sure to also specify the order to display your new panel app,
+    which was explained in [Adding Custom Panel Apps](/develop/tutorials/-/knowledge_base/7-0/customizing-the-product-menu#adding-custom-panel-apps).
 
-4. Define your simulation view. For instance, in `DevicePreviewPanelApp`, the
-   `getJspPath` method points to the `simulation-device.jsp` file in the
-   `resources/META-INF/resources` folder, where the device simulation interface
-   is defined. Optionally, you can also add your own language keys, CSS, or JS
-   resources in your simulation module.
+3.  This tutorial assumes you're using JSPs. 
+    Therefore, you should extend the [`BaseJSPPanelApp`](@app-ref@/web-experience/latest/javadocs/com/liferay/application/list/BaseJSPPanelApp.html)
+    abstract class, which implements the [`PanelApp`](@app-ref@/web-experience/latest/javadocs/com/liferay/application/list/PanelApp.html)
+    interface and also provides additional methods necessary for specifying JSPs
+    to render your panel app's UI. Remember that you can also implement your own
+    `include()` method to use any front-end technology you want, if you want to
+    use a technology other than JSP (e.g., FreeMarker).
 
-    <!-- Elaborate more on JSP! -Cody -->
+4.  Define your simulation view. For instance, in `DevicePreviewPanelApp`, the
+    `getJspPath` method points to the `simulation-device.jsp` file in the
+    `resources/META-INF/resources` folder, where the device simulation interface
+    is defined. Optionally, you can also add your own language keys, CSS, or
+    JavaScript resources in your simulation module.
 
-    The right servlet context is also provided implementing this method:
+    The right servlet context is also provided by implementing this method:
 
         @Override
         @Reference(
@@ -105,19 +96,18 @@ a panel app for the already present hidden category.
         }
 
     Audience Targeting also provides a good example of how to extend the
-    Simulation Menu. When the Audience Targeting app is deployed, the Simulation
-    Menu is extended to offer more functionality, in particular, for Audience
-    Targeting User Segments and Campaigns. You can simulate particular scenarios
-    for campaigns and users directly from the Simulation Menu. Its panel app
-    class is very similar to `DevicePreviewPanelApp`, except it points to a
-    different portlet and JSP.
+    Simulation Menu. When the Audience Targeting app is deployed, the
+    Simulation Menu is extended to offer Audience Targeting User Segments and
+    Campaigns. You can simulate particular scenarios for campaigns and users
+    directly from the Simulation Menu. Its panel app class is similar to
+    `DevicePreviewPanelApp`, except it points to a different portlet and JSP.
 
     ![Figure 2: The Audience Targeting app extends the Simulation Menu to help simulate different users and campaign views.](../../images/simulation-menu-at.png)
 
-5. You can combine your simulation options with the device simulation options by
-   interacting with the device preview iFrame. To retrieve the device preview
-   frame in an `aui:script` block of your custom simulation view's JavaScript,
-   you can use the following:
+5.  You can combine your simulation options with the device simulation options 
+    by interacting with the device preview iFrame. To retrieve the device 
+    preview frame in an `aui:script` block of your custom simulation view's 
+    JavaScript, you can use this code:
 
         var iframe = A.one('#simulationDeviceIframe');
 
@@ -126,6 +116,6 @@ a panel app for the already present hidden category.
         iframe.setAttribute('src', newUrlWithCustomParameters);
 
 Now that you know how to extend the necessary panel categories and panel apps to
-modify the Simulation Menu, go ahead and [create a module](/develop/tutorials/-/knowledge_base/7-0/starting-module-development#creating-a-module) 
+modify the Simulation Menu, [create a module](/develop/tutorials/-/knowledge_base/7-1/starting-module-development#creating-a-module) 
 of your own and customize the Simulation Menu so it's most helpful for your 
 needs.

@@ -4,12 +4,17 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
-import org.apache.commons.lang3.StringUtils;
 import org.htmlparser.Parser;
 import org.htmlparser.filters.NodeClassFilter;
 import org.htmlparser.tags.LinkTag;
@@ -20,12 +25,19 @@ import com.liferay.portal.kernel.util.Validator;
 
 public class CheckLinks {
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws Exception {
 
 		String legacyLinks = args[0];
 		checkLegacyLinks = Boolean.parseBoolean(legacyLinks);
 
-		String docDir = args[1];
+		String apiLinks = args[1];
+		checkApiLinks = Boolean.parseBoolean(apiLinks);
+
+		String docDir = args[2];
+		platformToken = args[3];
+		appToken = args[4];
+		platformReferenceSite = args[5];
+		appReferenceSite = args[6];
 
 		File currentArticleDir = new File("../" + docDir + "/articles");
 
@@ -35,6 +47,8 @@ public class CheckLinks {
 
 		userGuideHeaders = findHeaders(userGuideArticles);
 		adminGuideHeaders = findHeaders(adminGuideArticles);
+		analyticsCloudHeaders = findHeaders(analyticsCloudArticles);
+		commerceHeaders = findHeaders(commerceArticles);
 		userGuideReferenceHeaders = findHeaders(userGuideReferenceArticles);
 		tutorialHeaders = findHeaders(tutorialArticles);
 		devGuideReferenceHeaders = findHeaders(devGuideReferenceArticles);
@@ -49,43 +63,80 @@ public class CheckLinks {
 				if (line.contains("](/develop/") || line.contains("](/discover/") ||
 						line.contains("](/distribute/")) {
 
-					String header = extractHeader(line, article, in);
+					String findStr = "/-/knowledge_base/";
+					int urlsInLine = countStrings(line, findStr);
 
-					String primaryHeader = null;
-					validUrl = true;
+					if (urlsInLine < 2) {
 
-					if (header.contains("#")) {
-						String[] splitHeaders = header.split("#");
+						String header = extractHeader(line, article, in, findStr);
 
-						primaryHeader = splitHeaders[0];
-						String secondaryHeader = splitHeaders[1];
+						String primaryHeader = null;
+						validUrl = true;
 
-						validUrl = isUrlValid(line, article, in, primaryHeader, secondaryHeader);
+						if (header.contains("#")) {
+							String[] splitHeaders = header.split("#");
+
+							primaryHeader = splitHeaders[0];
+							String secondaryHeader = splitHeaders[1];
+
+							validUrl = isUrlValid(line, article, in, primaryHeader, secondaryHeader, 0, false);
+						}
+						else if (header.equals("")) {
+							continue;
+						}
+						else {
+
+							primaryHeader = header;
+							validUrl = isUrlValid(line, article, in, primaryHeader, null, 0, false);
+						}
+
+						if (!validUrl) {
+							logInvalidUrl(article, in.getLineNumber(), line, false);
+						}
 					}
-					else if (header.equals("")) {
-						continue;
+
+					else {
+						checkMultiLinks(article, line, in, findStr);
+					}
+				}
+				if (line.contains("](#")) {
+
+					String findStr = "](#";
+					int subHeadersInLine = countStrings(line, findStr);
+
+					if (subHeadersInLine < 2) {
+						String secondaryHeader = extractSubHeader(line, article, in);
+
+						validUrl = isSubUrlValid(article, secondaryHeader);
+
+						if (!validUrl) {
+							logInvalidUrl(article, in.getLineNumber(), line, false);
+						}
 					}
 					else {
-
-						primaryHeader = header;
-						validUrl = isUrlValid(line, article, in, primaryHeader, null);
+						checkMultiSubLinks(article, line, in, findStr);
 					}
+
+				}
+				if (checkApiLinks && line.contains("/javadocs/")
+						&& line.contains("/com/liferay/")) {
+
+					validUrl = isApiUrlValid(article, in, line);
 
 					if (!validUrl) {
-						resultsNumber = resultsNumber + 1;
-
-						System.out.println(resultsNumber + ". " + "**INVALID URL**\n File: " +
-								article.getPath() + ":" + in.getLineNumber() + "\n" +
-								" Line: " + line);
-
+						logInvalidUrl(article, in.getLineNumber(), line, false);
 					}
-
 				}
 			}
 
 			in.close();
 		}
-		System.out.println("\nTotal Broken Links: " + resultsNumber);
+		if (resultsNumber > 0) {
+			throw new Exception("\n\n**Total Broken Links: " + resultsNumber + "**\n");
+		}
+		else {
+			System.out.println("\nNo Broken Links!");
+		}
 	}
 
 	/**
@@ -93,29 +144,42 @@ public class CheckLinks {
 	 * current line and assigns it to the appropriate header list.
 	 *
 	 * @param  line the line containing a relative URL
+	 * @param  lineIndex the header's index on the line. This is useful when
+	 *         there are multiple relative links on one line.
 	 * @return the referenced headers
 	 */
-	private static ArrayList<List<String>> assignDirHeaders(String line) {
+	private static ArrayList<List<String>> assignDirHeaders(String line, int lineIndex) {
 
 		ArrayList<List<String>> headers = new ArrayList<List<String>>();
 
-		if (line.contains(userGuideDir)) {
+		String lineSubstring = line.substring(lineIndex, line.length());		
+
+		// The first link in the substring will have its headers applied.
+		if (lineSubstring.contains(userGuideDir)) {
 			headers = userGuideHeaders;
 		}
 
-		if (line.contains(adminGuideDir)) {
+		else if (lineSubstring.contains(adminGuideDir)) {
 			headers = adminGuideHeaders;
 		}
 
-		if (line.contains(userGuideReferenceDir)) {
+		else if (lineSubstring.contains(commerceDir)) {
+			headers = commerceHeaders;
+		}
+
+		else if (lineSubstring.contains(analyticsCloudDir)) {
+			headers = analyticsCloudHeaders;
+		}
+
+		else if (lineSubstring.contains(userGuideReferenceDir)) {
 			headers = userGuideReferenceHeaders;
 		}
 
-		if (line.contains(tutorialDir)) {
+		else if (lineSubstring.contains(tutorialDir)) {
 			headers = tutorialHeaders;
 		}
 
-		if (line.contains(devGuideReferenceDir)) {
+		else if (lineSubstring.contains(devGuideReferenceDir)) {
 			headers = devGuideReferenceHeaders;
 		}
 
@@ -141,6 +205,14 @@ public class CheckLinks {
 				adminGuideArticles = findArticles(adminGuideDir);
 			}
 
+			if (articleDir.equals(commerceDir)) {
+				commerceArticles = findArticles(commerceDir);
+			}
+
+			if (articleDir.equals(analyticsCloudDir)) {
+				analyticsCloudArticles = findArticles(analyticsCloudDir);
+			}
+
 			if (articleDir.equals(userGuideReferenceDir)) {
 				userGuideReferenceArticles = findArticles(userGuideReferenceDir);
 			}
@@ -153,6 +225,134 @@ public class CheckLinks {
 				devGuideReferenceArticles = findArticles(devGuideReferenceDir);
 			}
 		}
+	}
+
+	/**
+	 * Checks the line that contains multiple relative links.
+	 *
+	 * @param  article the article containing the line
+	 * @param  line the line containing multiple relative links
+	 * @param  in the line number reader
+	 * @param  findStr the string used for indexing the line's links
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static void checkMultiLinks(File article, String line, LineNumberReader in, String findStr)
+			throws IOException {
+
+		// Extract headers into map with <header, index> pairs
+		LinkedHashMap<String, Integer> headerMaps = extractMultiStrings(line, article, in, findStr, 4);
+
+		Iterator<?> it = headerMaps.entrySet().iterator();
+
+		// Iterating through header maps, which contain header and index information
+		// used for validating lines with multiple links
+	    while (it.hasNext()) {
+
+	    	@SuppressWarnings("rawtypes")
+			Map.Entry pair = (Map.Entry)it.next();
+	        it.remove();
+
+			String header = pair.getKey().toString();
+			String headerValue = pair.getValue().toString();
+			int headerIndex = Integer.parseInt(headerValue);
+
+			// Find version for each header so we can accurately check them
+			String substringLineStart = line.substring(headerIndex);
+			int headerStart = substringLineStart.indexOf(findStr) + findStr.length();
+			String version = substringLineStart.substring(headerStart, headerStart + 3);
+			boolean differingDefaultVersion = false;
+
+			if (!version.equals("7-1")) {
+				differingDefaultVersion = true;
+			}
+
+			// end of >1 logic
+
+			String primaryHeader = null;
+			validUrl = true;
+
+			if (header.contains("#")) {
+				String[] splitHeaders = header.split("#");
+
+				primaryHeader = splitHeaders[0];
+				String secondaryHeader = splitHeaders[1];
+
+				validUrl = isUrlValid(line, article, in, primaryHeader, secondaryHeader, headerIndex, differingDefaultVersion);
+			}
+			else if (header.equals("")) {
+				continue;
+			}
+			else {
+
+				primaryHeader = header;
+				validUrl = isUrlValid(line, article, in, primaryHeader, null, headerIndex, differingDefaultVersion);
+			}
+
+			if (!validUrl) {
+				logInvalidUrl(article, in.getLineNumber(), line, false);
+				System.out.println("Invalid Header: " + header + "\n");
+			}
+		}
+
+	}
+
+	/**
+	 * Checks the line that contains multiple subheader relative links.
+	 *
+	 * @param  article the article containing the line
+	 * @param  line the line containing multiple subheader relative links
+	 * @param  in the line number reader
+	 * @param  findStr the string used for indexing the line's links
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static void checkMultiSubLinks(File article, String line, LineNumberReader in,
+			String findStr) throws IOException {
+
+		LinkedHashMap<String, Integer> headerMaps = extractMultiStrings(line, article, in, findStr, 0);
+
+		Iterator<?> it = headerMaps.entrySet().iterator();
+
+		// Iterating through header maps, which contain header and index information
+		// used for validating lines with multiple links
+	    while (it.hasNext()) {
+
+	    	@SuppressWarnings("rawtypes")
+			Map.Entry pair = (Map.Entry)it.next();
+	        it.remove();
+
+			String secondaryHeader = pair.getKey().toString();
+
+			validUrl = isSubUrlValid(article, secondaryHeader);
+
+			if (!validUrl) {
+				logInvalidUrl(article, in.getLineNumber(), line, false);
+				System.out.println("Invalid Subheader: #" + secondaryHeader + "\n");
+			}
+	    }
+	}
+
+	/**
+	 * Returns the number of specific strings in the line.
+	 *
+	 * @param  line the line to count the number of specific strings
+	 * @param  findStr the specific string to search for
+	 * @return the number of specific strings in the line
+	 */
+	private static int countStrings(String line, String findStr) {
+
+		int lastIndex = 0;
+		int count = 0;
+
+		while(lastIndex != -1){
+
+		    lastIndex = line.indexOf(findStr,lastIndex);
+
+		    if(lastIndex != -1){
+		        count ++;
+		        lastIndex += findStr.length();
+		    }
+		}
+		return count;
 	}
 
 	/**
@@ -180,13 +380,16 @@ public class CheckLinks {
 	 * @param  line the line from which to extract the header
 	 * @param  article the article containing the line
 	 * @param  in the line number reader
+	 * @param  findStr the string to search for. This is helpful to prevent
+	 *         false positives when searching for a header.
 	 * @return the header ID
 	 * @throws IOException if an IO exception occurred
 	 */
-	private static String extractHeader(String line, File article, LineNumberReader in)
+	private static String extractHeader(String line, File article, LineNumberReader in, String findStr)
 			throws IOException {
 
-		int begIndex = line.lastIndexOf("/") + 1;
+		int strIndex = line.indexOf(findStr);
+		int begIndex = strIndex + findStr.length() + 4;
 		int endIndex = line.indexOf(")", begIndex);
 
 		String header = "";
@@ -194,14 +397,57 @@ public class CheckLinks {
 		try {
 			header = line.substring(begIndex, endIndex);
 		} catch(Exception e) {
-			resultsNumber = resultsNumber + 1;
-
-			System.out.println(resultsNumber + ". " + "**CORRUPT URL FORMATTING**\n"
-					+ "File: " + article.getPath() + ":" + in.getLineNumber() + "\n" +
-					" Line: " + line);
+			logInvalidUrl(article, in.getLineNumber(), line, true);
 		}
 
 		return header;
+	}
+
+	/**
+	 * Returns a map of headers paired with their line indexes. This method is
+	 * used to extract multiple headers (from relative links) that are contained
+	 * on one line.
+	 *
+	 * @param  line the line from which to extract the header
+	 * @param  article the article containing the line
+	 * @param  in the line number reader
+	 * @param  findStr the string to search for. This is helpful to prevent
+	 *         false positives when searching for a header.
+	 * @param  indexCorrection the number used to modify the index used when
+	 *         searching for the next specific string on the line
+	 * @return the multiple headers contained on the line paired with their indexes
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static LinkedHashMap<String, Integer> extractMultiStrings(String line, File article, LineNumberReader in,
+			String findStr, int indexCorrection) throws IOException {
+
+		// Find all relevant headers
+		LinkedHashMap<String, Integer> headerMap = new LinkedHashMap<String, Integer>();
+		String originalLine = line;
+
+		while(line.contains(findStr)){
+
+			int strIndex = line.indexOf(findStr);
+			int begIndex = strIndex + findStr.length() + indexCorrection;
+			int endIndex = line.indexOf(")", begIndex);
+			int headerIndex = originalLine.length() - line.length();
+
+			String header = "";
+
+			try {
+				header = line.substring(begIndex, endIndex);
+			} catch(Exception e) {
+				logInvalidUrl(article, in.getLineNumber(), line, true);
+			}
+
+			line = line.substring(endIndex, line.length());
+
+			headerMap.put(header, headerIndex);
+			//headerList.add(map);
+
+		}
+
+		return headerMap;
 	}
 
 	/**
@@ -224,11 +470,7 @@ public class CheckLinks {
 			endLdnUrl = line.substring(begIndex, endIndex);
 		} catch (StringIndexOutOfBoundsException e) {
 			endLdnUrl = line.substring(begIndex, line.length());
-			resultsNumber = resultsNumber + 1;
-
-			System.out.println(resultsNumber + ". " + "**CORRUPT URL FORMATTING**\n"
-					+ "File: " + article.getPath() + ":" + lineNumber + "\n" +
-					" Line: " + line);
+			logInvalidUrl(article, lineNumber, line, true);
 		}
 
 		ldnArticle = endLdnUrl;
@@ -238,6 +480,33 @@ public class CheckLinks {
 		String ldnUrl = begLdnUrl.concat(endLdnUrl);
 
 		return ldnUrl;
+	}
+
+	/**
+	 * Returns the sub-header ID contained in the given line. A sub-header is a
+	 * header characterizing a subsection in the article.
+	 *
+	 * @param  line the line from which to extract the URL
+	 * @param  article the article containing the line
+	 * @param  in the line number reader
+	 * @return the sub-header ID
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static String extractSubHeader(String line, File article, LineNumberReader in)
+			throws IOException {
+
+		int begIndex = line.indexOf("](#") + 3;
+		int endIndex = line.indexOf(")", begIndex);
+
+		String header = "";
+
+		try {
+			header = line.substring(begIndex, endIndex);
+		} catch(Exception e) {
+			logInvalidUrl(article, in.getLineNumber(), line, true);
+		}
+
+		return header;
 	}
 
 	/**
@@ -362,6 +631,55 @@ public class CheckLinks {
 	}
 
 	/**
+	 * Returns <code>true</code> if the API URL is valid. This method is used to
+	 * check URLs hosted on docs.liferay.com.
+	 *
+	 * @param  article the article containing the API URL
+	 * @param  in the line number reader
+	 * @param  line the line containing the API URL
+	 * @return <code>true</code> if the API URL is valid; <code>false</code>
+	 *         otherwise
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static boolean isApiUrlValid(File article, LineNumberReader in, String line)
+			throws IOException {
+
+		boolean validAPIURL = true;
+
+		int begIndex = line.indexOf("](") + 2;
+		int endIndex = line.indexOf(")", begIndex);
+
+		String urlString = line.substring(begIndex, endIndex);
+
+		urlString = urlString.replace("@" + platformToken + "@", platformReferenceSite);
+		urlString = urlString.replace("@" + appToken + "@", appReferenceSite);
+
+		URL url = null;
+
+		try {
+			url = new URL(urlString);
+		} catch (MalformedURLException e) {
+			// ignore this because docs.liferay.com creates many URLs that work
+			// but throw the MalformedURLException
+		}
+
+		try {
+			HttpURLConnection urlConnection = (HttpURLConnection)url.openConnection();
+			urlConnection.setRequestMethod("GET");
+			urlConnection.connect() ; 
+			int code = urlConnection.getResponseCode();
+
+			if (code == 404) {
+				validAPIURL = false;
+			}
+		} catch (NullPointerException e) {
+			logInvalidUrl(article, in.getLineNumber(), line, true);
+		}
+
+		return validAPIURL;
+	}
+
+	/**
 	 * Returns <code>true</code> if the LDN URL is valid. This method is used to
 	 * check legacy URLs hosted on LDN.
 	 *
@@ -382,11 +700,7 @@ public class CheckLinks {
 			Parser htmlParser = new Parser(url);
 			list = htmlParser.extractAllNodesThatMatch(new NodeClassFilter(LinkTag.class));
 		} catch (ParserException e) {
-			resultsNumber = resultsNumber + 1;
-
-			System.out.println(resultsNumber + ". " + "**INVALID URL**\n File: " +
-					article.getPath() + ":" + lineNumber + "\n" +
-					" Line: " + ldnArticle);	
+			logInvalidUrl(article, lineNumber, ldnArticle, false);
 		}
 
 		List<String> results = new LinkedList<String>();
@@ -400,12 +714,7 @@ public class CheckLinks {
 
 		for (String x : results) {
 			if (x.contains("2Fsearch&#x25;2Fsearch&#x26;_3_redirect&#x3d;")) {
-
-				resultsNumber = resultsNumber + 1;
-
-				System.out.println(resultsNumber + ". " + "**INVALID URL**\n File: " +
-						article.getPath() + ":" + lineNumber + "\n" +
-						" Line: " + ldnArticle);
+				logInvalidUrl(article, lineNumber, ldnArticle, false);
 			}
 			else {
 				validLDNURL = true;
@@ -413,6 +722,39 @@ public class CheckLinks {
 		}
 
 		return validLDNURL;
+	}
+
+	/**
+	 * Returns <code>true</code> if the sub-URL is valid. A sub-URL is a link
+	 * to a section existing in the same article.
+	 *
+	 * @param  article the article containing the sub-URL
+	 * @param  secondaryHeader the header ID for the section that is linked
+	 * @return <code>true</code> if the sub-URL is valid; <code>false</code>
+	 *         otherwise
+	 * @throws IOException if an IO exception occurred
+	 */
+	private static boolean isSubUrlValid(File article, String secondaryHeader)
+			throws IOException {
+
+		boolean validUrl = false;
+		char quotation = '"';
+		LineNumberReader in = new LineNumberReader(new FileReader(article));
+		String line = null;
+
+		while ((line = in.readLine()) != null) {
+
+			if (line.contains("[](id=" + secondaryHeader + ")")) {
+				validUrl = true;
+			}
+			else if (line.contains("<a name=" + quotation + secondaryHeader + quotation + ">")) {
+				validUrl = true;
+			}
+		}
+
+		in.close();
+
+		return validUrl;
 	}
 
 	/**
@@ -425,25 +767,23 @@ public class CheckLinks {
 	 * @param  in the line number reader
 	 * @param  primaryHeader the primary header ID
 	 * @param  secondaryHeader the secondary header ID
+	 * @param  lineIndex the header's index on the line. This is useful when
+	 *         there are multiple relative links on one line.
 	 * @return <code>true</code> if the URL is valid; <code>false</code>
 	 *         otherwise
 	 * @throws IOException if an IO exception occurred
 	 */
 	private static boolean isUrlValid(String line, File article, LineNumberReader in,
-			String primaryHeader, String secondaryHeader) throws IOException {
+			String primaryHeader, String secondaryHeader, int lineIndex,
+			boolean differingDefaultVersion) throws IOException {
 
 		boolean validURL = false;
 		ArrayList<List<String>> headers = new ArrayList<List<String>>();
 
-		headers = assignDirHeaders(line);
-		
-		// Prevents tables with multiple links from being invalidated
-		int count1 = StringUtils.countMatches(line, "/7-1/");
-		int count2 = StringUtils.countMatches(line, "/7-0/");
-		int count3 = StringUtils.countMatches(line, "/6-2/");
+		headers = assignDirHeaders(line, lineIndex);
 
 		// Check 7.1 links from local liferay-docs repo
-		if (line.contains("/7-1/") && count1 < 2) {
+		if (line.contains("/7-1/") && !differingDefaultVersion) {
 
 			if (Validator.isNull(secondaryHeader)) {
 
@@ -461,8 +801,7 @@ public class CheckLinks {
 
 		// Check legacy URLs by checking remote LDN site. These links must be
 		// published to LDN before this tool can verify them.
-		else if (checkLegacyLinks && (line.contains("/7-0/") || line.contains("/6-2/")) &&
-				(count2 < 2 && count3 < 2)) {
+		else if (checkLegacyLinks && (line.contains("/7-0/") || line.contains("/6-2/"))) {
 
 			String ldnUrl = extractLdnUrl(line, in.getLineNumber(), article);
 			validURL = isLdnUrlValid(ldnUrl, article, in.getLineNumber());
@@ -474,8 +813,44 @@ public class CheckLinks {
 		return validURL;
 	}
 
+	/**
+	 * Writes a message to the console specifying the article, line, and line
+	 * number for the invalid/corrupt URL.
+	 *
+	 * @param article the article containing the incorrect URL
+	 * @param lineNumber the line number of the line containing the incorrect
+	 *        URL
+	 * @param line the line containing the incorrect URL
+	 * @param corruptUrlFormat whether the reported URL is caused by corrupt
+	 *        formatting
+	 */
+	private static void logInvalidUrl(File article, int lineNumber, String line,
+			boolean corruptUrlFormat) {
+
+		String message = null;
+
+		if (corruptUrlFormat) {
+			message = "CORRUPT URL FORMATTING";
+		}
+		else {
+			message = "INVALID URL";
+		}
+
+		resultsNumber = resultsNumber + 1;
+
+		System.out.println(resultsNumber + ". " + "**" + message + "**\n File: " +
+				article.getPath() + ":" + lineNumber + "\n" +
+				" Line: " + line + "\n");
+
+	}
+
+	private static String appReferenceSite;
+	private static String appToken;
+	private static boolean checkApiLinks;
 	private static boolean checkLegacyLinks;
 	private static String ldnArticle;
+	private static String platformReferenceSite;
+	private static String platformToken;
 	private static int resultsNumber = 0;
 	private static boolean validUrl;
 
@@ -488,6 +863,14 @@ public class CheckLinks {
 	private static String adminGuideDir = "discover/deployment";
 	private static List<File> adminGuideArticles = new ArrayList<File>();
 	private static ArrayList<List<String>> adminGuideHeaders = new ArrayList<List<String>>();
+
+	private static String commerceDir = "discover/commerce";
+	private static List<File> commerceArticles = new ArrayList<File>();
+	private static ArrayList<List<String>> commerceHeaders = new ArrayList<List<String>>();
+
+	private static String analyticsCloudDir = "discover/analytics-cloud";
+	private static List<File> analyticsCloudArticles = new ArrayList<File>();
+	private static ArrayList<List<String>> analyticsCloudHeaders = new ArrayList<List<String>>();
 
 	private static String userGuideReferenceDir = "discover/reference";
 	private static List<File> userGuideReferenceArticles = new ArrayList<File>();
@@ -503,6 +886,6 @@ public class CheckLinks {
 	private static List<File> devGuideReferenceArticles = new ArrayList<File>();
 	private static ArrayList<List<String>> devGuideReferenceHeaders = new ArrayList<List<String>>();
 
-	private static String[] articleDirs = {userGuideDir, adminGuideDir, userGuideReferenceDir,
+	private static String[] articleDirs = {userGuideDir, adminGuideDir, commerceDir, analyticsCloudDir, userGuideReferenceDir,
 			tutorialDir, devGuideReferenceDir};
 }
