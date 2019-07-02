@@ -1,6 +1,8 @@
 #!/bin/sh
 
-classpathDir=$(pwd | sed 's/liferay\-docs.*/liferay\-docs\/lib/')
+scriptPath=$(readlink -f "$0")
+
+classpathDir=$(dirname $(dirname "$scriptPath"))/lib
 
 if [ $# -lt 1 ]; then
 	echo
@@ -17,9 +19,9 @@ elif [ $# -lt 2 ]; then
 	htmlFile=$1
 	htmlFile=$(echo "${htmlFile}" | sed 's/[^.]*$//')
 	htmlFile=${htmlFile}html
-	java -cp "${classpathDir}/*" com.liferay.documentation.util.MarkdownToHtmlMain $1 ${htmlFile}
+	java -cp "${classpathDir}/*" com.liferay.documentation.util.MarkdownToHtml $1 ${htmlFile}
 	exit 0
 else
-	java -cp "${classpathDir}/*" com.liferay.documentation.util.MarkdownToHtmlMain $1 $2
+	java -cp "${classpathDir}/*" com.liferay.documentation.util.MarkdownToHtml $1 $2
 	exit 0
 fi
